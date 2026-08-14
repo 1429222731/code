@@ -53,16 +53,21 @@ func Aggregate(rec *parse.Records, cidrs []*net.IPNet, pr portrange.PortRange) [
 func fillService(svc *model.Service, instFQDN string, rec *parse.Records) {
 	if srv := rec.SRV[instFQDN]; srv != nil {
 		svc.Port = int(srv.Port)
-		host := lowerFQDN(srv.Target)
-		if host != "" && host != "." {
+		// 记录键为带结尾点的 FQDN（与 parse 包一致），展示时去掉结尾点。
+		target := strings.ToLower(strings.TrimSpace(srv.Target))
+		if !strings.HasSuffix(target, ".") {
+			target += "."
+		}
+		host := strings.TrimSuffix(target, ".")
+		if host != "" {
 			svc.Hostname = host
 		}
 		if ttl, ok := rec.SRVTTL[instFQDN]; ok {
 			svc.TTL = ttl
 		}
 		// 目标主机名对应的 A/AAAA。
-		svc.IPv4 = mergeIPStrings(svc.IPv4, ipStrings(rec.A[host]))
-		svc.IPv6 = mergeIPStrings(svc.IPv6, ipStrings(rec.AAAA[host]))
+		svc.IPv4 = mergeIPStrings(svc.IPv4, ipStrings(rec.A[target]))
+		svc.IPv6 = mergeIPStrings(svc.IPv6, ipStrings(rec.AAAA[target]))
 	}
 	// 源 IP 补全资产地址（A 记录缺失时仍能定位设备）。
 	svc.IPv4 = mergeIPStrings(svc.IPv4, ipStrings(rec.SRC[instFQDN]))
@@ -108,17 +113,6 @@ func filterByPorts(svcs []*model.Service, pr portrange.PortRange) []*model.Servi
 		}
 	}
 	return out
-}
-
-func lowerFQDN(s string) string {
-	return strings.ToLower(strings.TrimSpace(trimDots(s)))
-}
-
-func trimDots(s string) string {
-	for len(s) > 0 && (s[len(s)-1] == '.' || s[len(s)-1] == ' ') {
-		s = s[:len(s)-1]
-	}
-	return s
 }
 
 func ipStrings(list []net.IP) []string {

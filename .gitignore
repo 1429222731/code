@@ -1,0 +1,10 @@
+# 编译产物
+*.exe
+*.exe~
+*.test
+*.out
+
+# 编辑器 / 工具目录
+.idea/
+.vscode/
+.claude/

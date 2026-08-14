@@ -54,6 +54,16 @@ type Config struct {
 	Timeout time.Duration
 	Workers int
 	MaxIPs  int
+	// Debug 为 true 时收集接收统计（供排障）。
+	Debug bool
+}
+
+// Stats 为一次扫描的接收统计。
+type Stats struct {
+	Packets   int64
+	Responses int64
+	Queries   int64
+	Types     int
 }
 
 // Scanner 持有一个组播 UDP socket，负责收发 mDNS 报文。
@@ -66,6 +76,7 @@ type Scanner struct {
 	readDone chan struct{}
 	deadline time.Time
 	ctx      context.Context
+	stats    Stats
 }
 
 // New 创建并初始化 Scanner，加入组播组 224.0.0.251:5353。
@@ -141,14 +152,18 @@ func (s *Scanner) readLoop() {
 		if err != nil {
 			return
 		}
+		s.mu.Lock()
+		s.stats.Packets++
 		m := new(dns.Msg)
 		if err := m.Unpack(buf[:n]); err != nil {
+			s.mu.Unlock()
 			continue
 		}
 		if !m.Response {
+			s.mu.Unlock()
 			continue
 		}
-		s.mu.Lock()
+		s.stats.Responses++
 		parse.AddMsg(m, src.IP, s.rec)
 		s.mu.Unlock()
 	}
@@ -170,7 +185,18 @@ func (s *Scanner) sendQuery(dst *net.UDPAddr, name string, qtype uint16, qu bool
 	if err != nil {
 		return
 	}
+	s.mu.Lock()
+	s.stats.Queries++
+	s.mu.Unlock()
 	_, _ = s.conn.WriteToUDP(b, dst)
+}
+
+// Stats 返回扫描接收统计。
+func (s *Scanner) Stats() Stats {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stats.Types = len(parse.ServiceTypes(s.rec))
+	return s.stats
 }
 
 // wait 在时间窗口内等待（不超过总 deadline）。

@@ -26,6 +26,7 @@ func main() {
 		workers = flag.Int("workers", 200, "单播探测并发数")
 		jsonOut = flag.Bool("json", false, "以 JSON 输出")
 		maxIPs  = flag.Int("maxips", 65536, "单播探测 IP 总数上限")
+		debug   = flag.Bool("debug", false, "输出接收统计用于排障")
 	)
 	flag.Parse()
 
@@ -42,6 +43,7 @@ func main() {
 		Timeout: cfg.Timeout,
 		Workers: cfg.Workers,
 		MaxIPs:  cfg.MaxIPs,
+		Debug:   *debug,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "初始化失败:", err)
@@ -67,4 +69,9 @@ func main() {
 		}
 	}
 	fmt.Fprintln(os.Stderr, "[*] 完成，共发现", len(services), "条服务资产")
+	if *debug {
+		st := sc.Stats()
+		fmt.Fprintf(os.Stderr, "[*] debug 统计: 发出查询=%d 收到报文=%d 应答=%d 发现类型=%d\n",
+			st.Queries, st.Packets, st.Responses, st.Types)
+	}
 }

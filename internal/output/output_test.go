@@ -92,7 +92,7 @@ func TestRenderJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := buf.String()
-	for _, key := range []string{`"qdiscover"`, `"model=Xserve"`, `"accessType=https"`, `"TS-X64"`, `"slw-nas [24:5e:be:69:a3:13]"`} {
+	for _, key := range []string{`"qdiscover"`, `"model=Xserve"`, `"accessType=https"`, `"model=TS-X64"`, `"slw-nas [24:5e:be:69:a3:13]"`} {
 		if !strings.Contains(s, key) {
 			t.Errorf("JSON 缺少字段 %s:\n%s", key, s)
 		}
